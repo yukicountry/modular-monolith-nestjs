@@ -1,0 +1,94 @@
+volumes:
+  db-store:
+  redis-store:
+  web-node_modules:
+  backend-node_modules:
+
+configs:
+  db-config:
+    file: ./docker/mysql/my.cnf
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/nodejs/Dockerfile
+    tty: true
+    volumes:
+      - type: bind
+        source: ./
+        target: /workspace
+      - type: volume
+        source: web-node_modules
+        target: /workspace/web/node_modules
+      - type: volume
+        source: backend-node_modules
+        target: /workspace/backend/node_modules
+    init: true
+    ports:
+      - target: 5173
+        published: 5173
+        protocol: tcp
+        mode: host
+      - target: 3000
+        published: 3000
+        protocol: tcp
+        mode: host
+  # web:
+  #   build:
+  #     context: .
+  #     dockerfile: ./docker/nginx/Dockerfile
+  #   ports:
+  #     - target: 80
+  #       published: 80
+  #       protocol: tcp
+  #       mode: host
+  #   volumes:
+  #     - type: bind
+  #       source: ./backend
+  #       target: /workspace
+  db:
+    build:
+      context: .
+      dockerfile: ./docker/mysql/Dockerfile
+    ports:
+      - target: 3306
+        published: 3306
+        protocol: tcp
+        mode: host
+    configs:
+      - source: db-config
+        target: /etc/my.cnf
+    volumes:
+      - type: volume
+        source: db-store
+        target: /var/lib/mysql
+        volume:
+          nocopy: true
+    environment:
+      - MYSQL_DATABASE=dev_db
+      - MYSQL_USER=dev_user
+      - MYSQL_PASSWORD=secret
+      - MYSQL_ROOT_PASSWORD=secret
+  redis:
+    image: redis:7.2.4
+    ports:
+      - 6379:6379
+    volumes:
+      - type: volume
+        source: redis-store
+        target: /data
+      - type: bind
+        source: ./docker/redis/redis.conf
+        target: /etc/redis.conf
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - target: 8025
+        published: 8025
+        protocol: tcp
+        mode: host
+      - target: 1025
+        published: 1025
+        protocol: tcp
+        mode: host
